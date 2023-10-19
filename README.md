@@ -16,7 +16,7 @@ Demo available [here](https://edu.louispetit.be/demo/rrt-rope). More info [here]
 
 ## Reference
 
-- L. Petit, and A. Desbiens. RRT-Rope: A deterministic shortening approach for fast near-optimal path planning in large-scale uncluttered 3D environments. IEEE International Conference on Systems, Man, and Cybernetics (SMC). Melbourne, Australia, 2021. 
+- L. Petit, and A. Desbiens. RRT-Rope: A deterministic shortening approach for fast near-optimal path planning in large-scale uncluttered 3D environments. IEEE International Conference on Systems, Man, and Cybernetics (SMC). Melbourne, Australia, 2021. **Best Student Paper Award** and **Top 5 Best Paper** 
 
 ## Author
 
