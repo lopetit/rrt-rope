@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RRT Path Planning Demo</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #map {
+            margin-top: 10px;
+            width: 400px;
+            height: 400px;
+            border: 1px solid #000;
+            position: relative;
+            overflow-x: auto; /* Enable horizontal scrolling when content overflows */
+            display: flex; /* Add a flex container */
+            justify-content: center; /* Center content horizontally */
+        }
+
+        #computationTime,
+        #pathDisplay,
+        #iterations,
+        #rawPathLength,
+        #pathLength {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+
+        /* Style the button container to display buttons in a row */
+        .button-container {
+            display: flex;
+            margin-top: 10px; /* Set the vertical gap after the container */
+            gap: 10px; /* Adjust the gap between buttons as needed */
+        }
+
+        .tree-node {
+            background-color: rgb(98, 98, 98);
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .path-node {
+            background-color: rgb(83, 153, 250);
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .raw-path-node {
+            background-color: rgb(3, 82, 127);
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .processed-path-node {
+            background-color: rgb(83, 153, 250);
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .interm-path-node {
+            background-color: rgb(255, 255, 188);
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .tree-branch {
+            position: absolute;
+            border-top: 1px solid rgb(104, 104, 104);
+        }
+
+        .tree-branch-b {
+            position: absolute;
+            border-top: 1px solid rgb(139, 9, 79);
+        }
+
+        .tree-branch-a {
+            position: absolute;
+            border-top: 1px solid rgb(55, 153, 14);
+        }
+
+        .path-branch {
+            position: absolute;
+            border-top: 2px solid rgb(83, 153, 250);
+        }
+
+        .raw-path-branch {
+            position: absolute;
+            border-top: 2px solid rgb(3, 82, 127);
+        }
+
+        .processed-path-branch {
+            position: absolute;
+            border-top: 2px solid rgb(83, 153, 250);
+        }
+
+        .interm-path-branch {
+            position: absolute;
+            border-top: 2px solid rgb(255, 255, 188);
+        }
+
+        .obstacle {
+            position: absolute;
+            background-color: rgb(0, 0, 0);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        .start-node {
+            background-color: rgb(4, 153, 4);
+            width: 10px;
+            height: 10px;
+        }
+
+        .goal-node {
+            background-color: rgb(152, 10, 10);
+            width: 10px;
+            height: 10px;
+        }
+
+        .free-node {
+            background-color: rgb(29, 136, 24);
+            width: 4px;
+            height: 4px;
+        }
+
+        .occupied-node {
+            background-color: rgb(146, 0, 0);
+            width: 4px;
+            height: 4px;
+        }
+
+        .mobile-slider-style {
+            width: 100px; /* Adjust the width as needed */
+        }
+
+        @media (max-width: 800px) {
+            .mobile-slider-style {
+                font-size: 10px; /* Adjust the font size as needed */
+                width: 70px; /* Adjust the width as needed */
+                height: 20px; /* Adjust the height as needed */
+            }
+        }
+        @media (max-width: 500px) {
+
+            .slider-container {
+                flex-direction: column;
+            }
+
+            .mobile-slider-style {
+                font-size: 10px; /* Adjust the font size as needed */
+                width: 70px; /* Adjust the width as needed */
+                height: 20px; /* Adjust the height as needed */
+            }
+
+            body {
+                height: 150vh;
+            }
+
+            #map {
+                width: 100%;
+                height: 40%;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+    
+    <div class="button-container" id="main-buttons-container">
+        <button id="resetBtn">Reset</button>
+        <button id="generateObstaclesBtn">Generate Obstacles</button>
+        <button id="defineStartBtn">Define Start</button>
+        <button id="defineGoalBtn">Define Goal</button>
+    </div>
+
+    <div class="button-container" id="planner-container"> 
+        <select id="path-planner">
+            <option value="rrt-rope">RRT-Rope</option>
+            <option value="rrt-connect">RRT-Connect</option>
+            <option value="rrt">RRT</option>
+        </select>
+        <select id="step-size-option">
+            <option value="without">Without Step Size</option>
+            <option value="with">With Step Size</option>
+        </select>
+        <button id="computeBtn">Compute</button>
+    </div>
+
+    <div class="button-container" id="stepsize-container">
+        <label for="step-size">Step Size:</label>
+        <input type="range" id="step-size" class="mobile-slider-style" min="10" max="100" value="45">
+        <span id="step-size-value">45</span>
+        <span style="padding-right: 10px;"> </span>
+    </div>
+
+
+    <div class="button-container" id="rope-stepsize-container">
+        <label for="rope-step-size">Step Size:</label>
+        <input type="range" id="rope-step-size" class="mobile-slider-style" min="1" max="50" value="20">
+        <span id="rope-step-size-value">20</span>
+        <span style="padding-right: 10px;"> </span>
+    </div>
+
+    <div class="button-container" id="iterations-container">
+        <label for="max-iterations">Max iterations:</label>
+        <input type="range" id="max-iterations" class="mobile-slider-style" min="1" max="10000" value="1000">
+        <span id="max-iterations-value">1000</span>
+        <span style="padding-right: 10px;"> </span>
+        
+    </div>
+
+
+    <div id="map">
+        <!-- Define the map here -->
+
+    </div>
+
+    
+
+
+    <div id="pathDisplay"></div>
+    <div id="computationTime"></div>
+    <div id="iterations"></div>
+    <div id="pathLength"></div>
+    <div id="rawPathLength"></div>
+    <pre id="nodeInfo"></pre>
+
+
+    <script>
+        const map = document.getElementById('map');
+        const pathDisplay = document.getElementById('pathDisplay');
+        let stepSizeOption = document.getElementById('step-size-option').value;
+        let delta = 20;
+        let selectedPlanner = document.getElementById("path-planner").value;
+        const obstacles = [];
+        const nodes = [];
+        const branches = [];
+        let path = [];
+        let pathStart = [];
+        let pathGoal = [];
+        let oldPath = [];
+        let rawPathLength = 0;
+        const pathBranches = [];
+        const pathNodes = [];
+        let startNode = null;
+        let goalNode = null;
+        let tree_node_id = 0;
+        let stepsize = 45;
+        let maxIterations = 1000;
+        let totalIterations = 0;
+
+        function createNode(x, y, className, parent, nodeRadius = 2) {
+            node = createHiddenNode(x, y, className, parent, nodeRadius);
+            node.style.display = 'block';
+            return node;
+        }
+
+        function createHiddenNode(x, y, className, parent, nodeRadius = 2) {
+            const node = document.createElement('div');
+            node.classList.add('tree-node');
+            node.classList.add(className);
+            node.style.left = x - nodeRadius + 'px';
+            node.style.top = y - nodeRadius + 'px';
+            node.x = x;
+            node.y = y;
+            node.id = tree_node_id;
+            node.parent = parent;
+            node.style.display = 'none';
+            map.appendChild(node);
+            return node;
+        }
+
+        function createBranch(x1, y1, x2, y2, className) {
+            branch = createHiddenBranch(x1, y1, x2, y2, className);
+            branch.style.display = 'block';
+            return branch;
+        }
+
+        function createHiddenBranch(x1, y1, x2, y2, className) {
+            const branch = document.createElement('div');
+            branch.classList.add(className);
+            branch.style.left = x1 + 'px';
+            branch.style.top = y1 + 'px';
+            branch.style.width = Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2)) + 'px';
+            branch.style.transformOrigin = 'top left';
+            branch.style.transform = 'rotate(' + Math.atan2(y2 - y1, x2 - x1) + 'rad)';
+            branch.style.display = 'none';
+            map.appendChild(branch);
+            return branch;
+        }
+
+        function clearMap() {
+            pathDisplay.textContent = 'Clearing map...';
+            clearObstacles();
+            if (startNode) {
+                map.removeChild(startNode);
+                startNode = null;
+            }
+            if (goalNode) {
+                map.removeChild(goalNode);
+                goalNode = null;
+            }
+            pathDisplay.textContent = '';
+            clearTree();
+            clearPath();
+        }
+
+        function defineStart() {
+            if (startNode) {
+                map.removeChild(startNode);
+            }
+            // set start at random empty 
+            const x = Math.floor(Math.random() * map.clientWidth);
+            const y = Math.floor(Math.random() * map.clientHeight);
+            startNode = createNode(x, y, 'start-node', null, 5);
+        }
+
+        function defineGoal() {
+            if (goalNode) {
+                map.removeChild(goalNode);
+            }
+            // set goal at random position
+            const x = Math.floor(Math.random() * map.clientWidth);
+            const y = Math.floor(Math.random() * map.clientHeight);
+            goalNode = createNode(x, y, 'goal-node', null, 5);
+        }
+
+        function testCollisionFunction(){ 
+            for(let i = 0; i < map.clientWidth; i += 10){
+                for(let j = 0; j < map.clientHeight; j += 10){
+                    const node = {x: i, y: j};
+                    if(isInObstacle(node)){
+                        const nodeElement = createNode(node.x, node.y, 'occupied-node', null);
+                        nodes.push(nodeElement);
+                    }
+                    else{
+                        const nodeElement = createNode(node.x, node.y, 'free-node', null);
+                        nodes.push(nodeElement);
+                    }
+                }
+            }
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', function () {
+            clearMap();
+            nodeInfo.textContent = '';
+        });
+
+        document.getElementById('defineStartBtn').addEventListener('click', function () {
+            defineStart();
+        });
+
+        document.getElementById('defineGoalBtn').addEventListener('click', function () {
+            defineGoal();
+        });
+
+        document.getElementById('computeBtn').addEventListener('click', function () {
+            if (startNode && goalNode) {
+                pathDisplay.textContent = "Computing...";
+                computePath();
+                // setTimeout(() => {
+                //    const path = computePath();
+                //}, 1000); // Simulate path computation
+            } else {
+                pathDisplay.textContent = "Define start and goal positions first.";
+            }
+        });
+
+
+        function rrtConnectAlgorithm() {
+            const treeStart = [];
+            const treeGoal = [];
+
+            // Initialize the trees with the start and goal nodes
+            startNode.id = 0;
+            treeStart.push(startNode);
+
+            goalNode.id = 0;
+            treeGoal.push(goalNode);
+
+            for (totalIterations = 0; totalIterations < maxIterations; totalIterations++) {
+                
+                // With a probability of 0.5, extend the start tree towards the goal tree
+                if (Math.random() < 0.5) {
+                    
+                    const randomSample = generateRandomSample();
+                    const nearestNode = findNearestNode(treeStart, randomSample);
+                    const newNode = extendTree(nearestNode, randomSample, 'tree-branch-a');
+
+                    if (newNode) {
+                        treeStart.push(newNode);
+                        newNode.id = treeStart.length - 1;
+                        const connectingNode = connectTrees(treeGoal, newNode);
+                        
+                        if (connectingNode) {
+                            // A path from start to goal is found
+                            backtrackConnectPath(treeStart, newNode, treeGoal, connectingNode);
+                            pathDisplay.textContent = "Path found!";
+                            return true;
+                        }
+                    }
+                } else { // Extend the goal tree towards the start tree
+                    
+                    const randomSample = generateRandomSample();
+                    const nearestNode = findNearestNode(treeGoal, randomSample);
+                    const newNode = extendTree(nearestNode, randomSample, 'tree-branch-b');
+
+                    if (newNode) {
+                        treeGoal.push(newNode);
+                        newNode.id = treeGoal.length - 1;
+                        const connectingNode = connectTrees(treeStart, newNode);
+                        
+                        if (connectingNode) {
+                            // A path from start to goal is found
+                            backtrackConnectPath(treeStart, connectingNode, treeGoal, newNode);
+                            pathDisplay.textContent = "Path found!";
+                            return true;
+                        }
+                    }
+                }
+            }
+            pathDisplay.textContent = "No path found.";
+            return false;
+        }
+
+
+        function connectTrees(tree, newNode) {
+            let minDistance = Infinity;
+            let connectingNode = null;
+
+            for (let i = 0; i < tree.length; i++) {
+                const node = tree[i];
+                const dx = newNode.x - node.x;
+                const dy = newNode.y - node.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance && !isBranchInObstacle(newNode, node)) {
+                    minDistance = distance;
+                    connectingNode = node;
+                }
+            }
+
+            if (connectingNode) {
+                const BranchElement = createBranch(newNode.x, newNode.y, connectingNode.x, connectingNode.y, 'tree-branch');
+                branches.push(BranchElement);
+            }
+
+            return connectingNode;
+        }
+
+
+        function rrtAlgorithm() {
+            const tree = [];
+            startNode.id = 0;
+            tree.push(startNode);
+            tree_node_id = 1;
+
+            for (totalIterations = 0; totalIterations < maxIterations; totalIterations++) {
+                // alert('Iteration: ' + iteration + ' Tree length: ' + tree.length + ' First node: ' + tree[0].id + ' Parent: ' + tree[0].parent + ' X: ' + tree[0].x + ' Y: ' + tree[0].y + ' Last node: ' + tree[tree.length - 1].id + ' Parent: ' + tree[tree.length - 1].parent + ' X: ' + tree[tree.length - 1].x + ' Y: ' + tree[tree.length - 1].y);
+                // 1. Generate a random sample
+                const randomSample = generateRandomSample();
+
+                // 2. Find the nearest node in the tree to the random sample
+                const nearestNode = findNearestNode(tree, randomSample);
+
+                // 3. Extend the tree towards the random sample
+                const newNode = extendTree(nearestNode, randomSample, 'tree-branch');
+
+                if (newNode) {
+                    // Add the new node to the tree
+                    tree.push(newNode);
+                    tree_node_id++;
+
+                    // Check if the new node is in the goal region
+                    if (isInGoalRegion(newNode, goalNode)) {
+                        goalNode.parent = newNode.id;
+                        goalNode.id = tree_node_id;
+                        tree.push(goalNode);
+                        tree_node_id++;
+                        const BranchElement = createBranch(newNode.x, newNode.y, goalNode.x, goalNode.y, 'tree-branch');
+                        branches.push(BranchElement);
+                        // Backtrack to construct the path
+                        backtrackPath(tree, goalNode);
+                        pathDisplay.textContent = "Path found!";
+                        return true;
+                    }
+                }
+            }
+            pathDisplay.textContent = "No path found.";
+            return false; 
+        }
+
+        function generateRandomSample() { // Generate a random sample within the map boundaries            
+            const x = Math.floor(Math.random() * map.clientWidth);
+            const y = Math.floor(Math.random() * map.clientHeight);
+            return { x, y };
+        }
+
+        function findNearestNode(tree, sample) { // Find the nearest node in the tree to the random sample
+            let nearestNode = null;
+            let nearestDistance = Infinity;
+
+            tree.forEach(node => {
+                const dx = sample.x - node.x;
+                const dy = sample.y - node.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < nearestDistance) {
+                    nearestNode = node;
+                    nearestDistance = distance;
+                }
+            });
+
+            return nearestNode;
+        }
+
+        function extendTree(nearestNode, randomSample, branchClassName) { // Extend the tree from the nearest node towards the random sample // Ensure that the path is collision-free and return the new node.
+            // Compute the unit vector from the nearest node to the random sample
+            const dx = randomSample.x - nearestNode.x;
+            const dy = randomSample.y - nearestNode.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const unitVector = { x: dx / distance, y: dy / distance };
+            let newNode;
+
+            // Compute the new node position
+            if(stepSizeOption === "with"){
+                newNode = { x: nearestNode.x + unitVector.x * stepsize, y: nearestNode.y + unitVector.y * stepsize }; 
+            }
+            else{
+                newNode = { x: randomSample.x, y: randomSample.y };
+            }
+            
+            // Check if the new node is in an obstacle
+            if (isInObstacle(newNode)) {
+                return null;
+            }
+
+            // Check if the new node is in the map boundaries
+            if (newNode.x < 0 || newNode.x > map.clientWidth || newNode.y < 0 || newNode.y > map.clientHeight) {
+                return null;
+            }
+
+            // Check if the segment between the nearest node and the new node is in an obstacle
+            if (isBranchInObstacle(nearestNode, newNode)) {
+                return null;
+            }
+
+            // Create a node element and add it to the map
+            const nodeElement = createNode(newNode.x, newNode.y, 'tree-node', nearestNode.id);
+            nodes.push(nodeElement);
+
+            // Draw a branch from the nearest node to the new node
+            const BranchElement = createBranch(nearestNode.x, nearestNode.y, newNode.x, newNode.y, branchClassName);
+            branches.push(BranchElement);
+
+            return nodeElement;
+        }
+
+
+        function isInGoalRegion(node, goal) { // Check if the node is in the goal region
+            const dx = node.x - goal.x;
+            const dy = node.y - goal.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < stepsize; // Assuming a 20px goal radius
+        }
+
+        function backtrackConnectPath(treeStart, nodeStart, treeGoal, nodeGoal){ // Backtrack from the connecting node to the root node of each tree and assemble the 2 subpaths to construct the final path.
+            let previousNode = nodeStart;
+            let currentNode = treeStart[nodeStart.parent];
+            pathStart = [];
+
+            let pathBranchClass = 'path-branch';
+            let pathNodeClass = 'path-node';
+            if(selectedPlanner === "rrt-rope"){
+                pathBranchClass = 'raw-path-branch';
+                pathNodeClass = 'raw-path-node';
+            }
+            const BranchElement = createBranch(nodeGoal.x, nodeGoal.y, nodeStart.x, nodeStart.y, pathBranchClass);
+            pathBranches.push(BranchElement);
+
+            let nodeElement = createNode(previousNode.x, previousNode.y, pathNodeClass, previousNode.parent);
+            pathStart.push(nodeElement);
+            
+            while (currentNode) {
+                const nodeElement = createNode(currentNode.x, currentNode.y, pathNodeClass, currentNode.parent);
+                pathStart.push(nodeElement);
+                const BranchElement = createBranch(previousNode.x, previousNode.y, currentNode.x, currentNode.y, pathBranchClass);
+                pathBranches.push(BranchElement);
+
+                previousNode = currentNode;
+                currentNode = treeStart[currentNode.parent];
+            }
+
+            previousNode = nodeGoal;
+            currentNode = treeGoal[nodeGoal.parent];
+            pathGoal = [];
+
+            nodeElement = createNode(previousNode.x, previousNode.y, pathNodeClass, previousNode.parent);
+            pathGoal.push(nodeElement);
+            
+            while (currentNode) {
+                const nodeElement = createNode(currentNode.x, currentNode.y, pathNodeClass, currentNode.parent);
+                pathGoal.push(nodeElement);
+                const BranchElement = createBranch(previousNode.x, previousNode.y, currentNode.x, currentNode.y, pathBranchClass);
+                pathBranches.push(BranchElement);
+
+                previousNode = currentNode;
+                currentNode = treeGoal[currentNode.parent];
+            }
+
+            pathStart.reverse();
+            path = pathStart.concat(pathGoal);
+
+            return path;
+        }
+
+        function backtrackPath(tree, goalNode) { // Backtrack from the goal node to the root node to construct the final path.
+            let previousNode = goalNode;
+            const nodeElement = createNode(previousNode.x, previousNode.y, 'path-node', previousNode.parent);
+            path.push(nodeElement);
+            let currentNode = tree[goalNode.parent];
+            while (currentNode) {
+                const nodeElement = createNode(currentNode.x, currentNode.y, 'path-node', currentNode.parent);
+                path.push(nodeElement);
+                const BranchElement = createBranch(previousNode.x, previousNode.y, currentNode.x, currentNode.y, 'path-branch');
+                pathBranches.push(BranchElement);
+                previousNode = currentNode;
+                currentNode = tree[currentNode.parent];
+            }
+            return path;
+        }
+
+        function computePath() { 
+            clearTree();
+            pathDisplay.textContent = "Tree cleared";
+            clearPath();
+            pathDisplay.textContent = "Path cleared";
+
+            const startTime = performance.now(); // Start measuring time
+
+            if (selectedPlanner === "rrt-connect") {
+                rrtConnectAlgorithm();
+            } else if (selectedPlanner === "rrt") {
+                rrtAlgorithm();
+            } else if (selectedPlanner === "rrt-rope") {
+                rrtConnectAlgorithm();
+                rrtRopeShortcut();
+            } else {
+                alert("Please select a valid path planner.");
+            }
+
+            const endTime = performance.now(); // Stop measuring time
+            const computationTime = (endTime - startTime).toFixed(2); // Calculate time in milliseconds
+
+            // Display computation time
+            document.getElementById('computationTime').textContent = `Computation Time: ${computationTime} ms`;
+            document.getElementById('iterations').textContent = `Iterations: ${totalIterations + 1}`;
+            displayPathLength();
+        }
+
+        function rrtRopeShortcut(){ 
+            rawPathLength = 0;
+            for(let i = 0; i < path.length - 1; i++){ // add intermediate nodes to the path and compute the raw path length
+                addIntermediateNodes(path, i, i+1);
+                const dx = path[i + 1].x - path[i].x;
+                const dy = path[i + 1].y - path[i].y;
+                rawPathLength += Math.sqrt(dx * dx + dy * dy);
+            }
+
+            for(let i = 0; i < path.length - 2; i++){ // shortcut the path
+                for(let j = path.length - 1; j > i + 1; j--){
+                    // check if segment is already a straight line
+                    if(isBranchInStraightLine(path, i, j)){
+                        break;
+                    }
+                    if(!isBranchInObstacle(path[i], path[j])){
+                        oldPath = oldPath.concat(path.splice(i+1, j - i - 1)); // remove all nodes between i and j
+                        addIntermediateNodes(path, i, i+1);
+                        // displayIntermediatePath();
+                        i = 0;
+                        break;
+                    }
+                }
+            }
+
+            displayFinalPath();
+        }
+
+        function isBranchInStraightLine(path, i, j){ // check if the sum of the branches distances between indices i and j is the same as Euclidean distance
+            let sum = 0;
+            for(let k = i; k < j; k++){
+                sum += Math.sqrt((path[k+1].x - path[k].x) * (path[k+1].x - path[k].x) + (path[k+1].y - path[k].y) * (path[k+1].y - path[k].y));
+            }
+            const dx = path[j].x - path[i].x;
+            const dy = path[j].y - path[i].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return Math.abs(sum - distance) < 0.1;
+        }
+
+        function addIntermediateNodes(path, ind1, ind2){ 
+            const dx = path[ind2].x - path[ind1].x;
+            const dy = path[ind2].y - path[ind1].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const unitVector = { x: dx / distance, y: dy / distance };
+            const distance2 = distance - delta;
+            let parentId = path[ind1].parent;
+            let parentNode = path[ind1];
+            let indId = ind1 + 1;
+            for (let i = delta; i < distance2; i += delta) {
+                const point = { x: path[ind1].x + unitVector.x * i, y: path[ind1].y + unitVector.y * i };
+                const nodeElement = createHiddenNode(point.x, point.y, 'processed-path-node', parentId);
+                path.splice(indId, 0, nodeElement); // add the node to the path structure
+                parentId = nodeElement.id; 
+                parentNode = nodeElement;
+                indId++;
+            }
+            path[ind2].parent = parentId;
+        }
+
+
+        function displayFinalPath(){
+            for(let i = 0; i < path.length; i++){
+                const NodeElement = createNode(path[i].x, path[i].y, 'processed-path-node', path[i].parent);
+                pathNodes.push(NodeElement);
+                if(i > 0){
+                    const BranchElement = createBranch(path[i].x, path[i].y, path[i-1].x, path[i-1].y, 'processed-path-branch');
+                    pathBranches.push(BranchElement);
+                }
+            }
+        }
+
+        function displayIntermediatePath(){
+            for(let i = 0; i < path.length; i++){
+                const NodeElement = createNode(path[i].x, path[i].y, 'interm-path-node', path[i].parent);
+                pathNodes.push(NodeElement);
+                if(i > 0){
+                    const BranchElement = createBranch(path[i].x, path[i].y, path[i-1].x, path[i-1].y, 'interm-path-branch');
+                    pathBranches.push(BranchElement);
+                }
+            }
+        }
+
+        function displayPathLength() {
+            if(path.length > 1){
+                let pathLength = 0;
+                for (let i = 0; i < path.length - 1; i++) {
+                    const dx = path[i + 1].x - path[i].x;
+                    const dy = path[i + 1].y - path[i].y;
+                    pathLength += Math.sqrt(dx * dx + dy * dy);
+                }
+                document.getElementById('pathLength').textContent = `Path Length: ${pathLength.toFixed(2)} px`;
+                document.getElementById('rawPathLength').textContent = ``;
+                if(selectedPlanner === "rrt-rope"){
+                    document.getElementById('rawPathLength').textContent = `Before Shortcut: ${rawPathLength.toFixed(2)} px`;
+                }
+            }
+            else{
+                document.getElementById('pathLength').textContent = `Path Length: N/A`;
+                document.getElementById('rawPathLength').textContent = ``;
+            }
+        }
+
+        function isInObstacle(point) {
+            return obstacles.some(obstacle => {
+                const dx = point.x - obstacle.x;
+                const dy = point.y - obstacle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < 11; // Assuming a 10px obstacle radius and a safety margin
+            });
+        }
+
+        function isBranchInObstacle(point1, point2) {
+            const dx2 = point2.x - point1.x;
+            const dy2 = point2.y - point1.y;
+            const distance2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+            const unitVector2 = { x: dx2 / distance2, y: dy2 / distance2 };
+            const collisionStepSize = 1;
+            for (let i = 0; i < distance2; i += collisionStepSize) {
+                const point = { x: point1.x + unitVector2.x * i, y: point1.y + unitVector2.y * i };
+                if (isInObstacle(point)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Function to generate 30 obstacles at random positions within the map boundaries
+        function generateObstacles() {
+            // Remove any existing obstacles
+            clearObstacles();
+
+            for (let i = 0; i < 30; i++) {
+                const x = Math.floor(Math.random() * (map.clientWidth - 20)); // Subtract 20 to stay within bounds
+                const y = Math.floor(Math.random() * (map.clientHeight - 20)); // Subtract 20 to stay within bounds
+
+                const obstacle = document.createElement('div');
+                obstacle.classList.add('obstacle');
+                obstacle.style.left = x - 10 + 'px';
+                obstacle.style.top = y - 10 + 'px';
+                map.appendChild(obstacle);
+                obstacles.push({ x, y });
+            }
+        }
+
+        function clearObstacles() {
+            const obstacleElements = document.querySelectorAll('.obstacle');
+            obstacleElements.forEach(obstacle => {
+                obstacle.remove();
+            });
+            obstacles.length = 0;
+        }
+
+        function clearTree() {
+            nodes.forEach(node => map.removeChild(node));
+            nodes.length = 0;
+            branches.forEach(branch => map.removeChild(branch));
+            branches.length = 0;
+        }
+
+        function clearPath() {
+            path.forEach(node => map.removeChild(node));
+            path.length = 0;
+            oldPath.forEach(node => map.removeChild(node));
+            oldPath.length = 0;
+            pathBranches.forEach(branch => map.removeChild(branch));
+            pathBranches.length = 0;
+            pathNodes.forEach(node => map.removeChild(node));
+            pathNodes.length = 0;
+        }
+
+        // Add an event listener for the "Generate Obstacles" button
+        document.getElementById('generateObstaclesBtn').addEventListener('click', function () {
+            generateObstacles();
+        });
+
+        // Add event listeners for the sliders
+        document.getElementById('step-size').addEventListener('input', function () {
+            stepsize = parseInt(this.value, 10);
+            document.getElementById('step-size-value').textContent = this.value;
+        });
+
+        document.getElementById('rope-step-size').addEventListener('input', function () {
+            delta = parseInt(this.value, 10);
+            document.getElementById('rope-step-size-value').textContent = this.value;
+        });
+
+        document.getElementById('max-iterations').addEventListener('input', function () {
+            maxIterations = parseInt(this.value, 10);
+            document.getElementById('max-iterations-value').textContent = this.value;
+        });
+
+        const stepSizeContainer = document.getElementById("stepsize-container");
+        stepSizeContainer.style.display = "none";
+
+        const deltaContainer = document.getElementById("rope-stepsize-container");
+        deltaContainer.style.display = "block";
+
+        const stepSizeOptionContainer = document.getElementById("step-size-option");
+        stepSizeOptionContainer.style.display = "none";
+
+        document.getElementById("step-size-option").addEventListener("change", function () {
+            stepSizeOption = this.value;
+            if(stepSizeOption === "with"){
+                stepSizeContainer.style.display = "block";
+            }
+            else{
+                stepSizeContainer.style.display = "none";
+            }
+        });
+
+        document.getElementById("path-planner").addEventListener("change", function () {
+            selectedPlanner = this.value;
+            if(selectedPlanner === "rrt-rope"){
+                stepSizeOptionContainer.style.display = "none";
+                stepSizeContainer.style.display = "none";
+                deltaContainer.style.display = "block";
+            }
+            else{
+                stepSizeOptionContainer.style.display = "block";
+                deltaContainer.style.display = "none";
+                if(stepSizeOption === "with"){
+                    stepSizeContainer.style.display = "block";
+                }
+                else{
+                    stepSizeContainer.style.display = "none";
+                }
+            }
+        });
+
+        const button2 = document.getElementById("generateObstaclesBtn");
+        button2.click();
+        const button0 = document.getElementById("defineStartBtn");
+        button0.click();
+        const button1 = document.getElementById("defineGoalBtn");
+        button1.click();
+        const button3 = document.getElementById("computeBtn");
+        button3.click();
+
+    </script>
+</body>
+</html>

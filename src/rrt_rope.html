@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Path Planning Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+    
+        /* Center the content vertically and horizontally */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* Style the button container to display buttons in a row */
+        .button-container {
+            display: flex;
+            margin-top: 10px; /* Set the vertical gap after the container */
+            gap: 10px; /* Adjust the gap between buttons as needed */
+        }
+
+        .slider-container {
+            display: flex;
+            margin-top: 10px; /* Set the vertical gap after the container */
+            gap: 10px; /* Adjust the gap between buttons as needed */
+        }
+
+
+        .grid-container {
+            margin-top: 10px; /* Set the vertical gap after the container */
+            width: 100%; /* Set a specific width or a percentage as needed */
+            overflow-x: auto; /* Enable horizontal scrolling when content overflows */
+            display: flex; /* Add a flex container */
+            justify-content: center; /* Center content horizontally */
+        }
+
+        .row {
+            white-space: nowrap; /* Prevent cells from wrapping to the next line */
+        }
+
+        .mobile-slider-style {
+            width: 100px; /* Adjust the width as needed */
+        }
+
+        .cell {
+            width: 10px;
+            height: 10px;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+        .start {
+            background-color: rgb(156, 243, 147);
+        }
+        .goal {
+            background-color: rgb(255, 150, 150);
+        }
+        .obstacle {
+            background-color: rgb(126, 126, 126);
+        }
+        .path {
+            background-color: rgb(136, 174, 255);
+        }
+        @media (max-width: 800px) {
+            .mobile-slider-style {
+                font-size: 10px; /* Adjust the font size as needed */
+                width: 70px; /* Adjust the width as needed */
+                height: 20px; /* Adjust the height as needed */
+            }
+        }
+        @media (max-width: 500px) {
+            .cell {
+                width: 5px;
+                height: 5px;
+                border: 1px solid #ccc;
+                display: inline-block; 
+            }
+            .slider-container {
+                flex-direction: column;
+            }
+
+            .mobile-slider-style {
+                font-size: 10px; /* Adjust the font size as needed */
+                width: 70px; /* Adjust the width as needed */
+                height: 20px; /* Adjust the height as needed */
+            }
+
+
+            body {
+                height: 150vh;
+            }
+
+        }
+    </style>
+    
+
+</head>
+<body>
+
+     <!-- Dropdown menu for path planner selection -->
+     <div class="button-container" id="planner-container">
+        <button id="define-start" >Set Start</button>
+        <button id="define-goal" >Set Goal</button>
+        <select id="path-planner">
+            <option value="rrt">RRT</option>
+            <option value="rrt-rope">RRT-Rope</option>
+        </select>
+        <button id="compute" >Compute Path</button>
+    </div>
+
+    
+    <div class="grid-container">
+        <div id="map">
+        <!-- The grid will be dynamically created here. -->
+        </div>
+    </div>
+
+     <!-- Container for buttons with the ID 'button-container' -->
+     <div class="button-container" id="grid-container">
+        <label for="row-count">Rows:</label>
+        <input type="range" id="row-count" class="mobile-slider-style" min="1" max="80" value="30">
+        <span id="row-value">30</span>
+        <span style="padding-right: 10px;"> </span>
+        
+        <label for="column-count">Columns:</label>
+        <input type="range" id="column-count" class="mobile-slider-style" min="1" max="80" value="40">
+        <span id="column-value">40</span>
+        <span style="padding-right: 10px;"> </span>
+
+        <button id="create-grid" >Create Grid</button>
+    </div>
+    
+    <div class="button-container" id="obstacles-container">
+        <label for="obstacle-count">Obstacles:</label>
+        <input type="range" id="obstacle-count" class="mobile-slider-style" min="1" max="400" value="80">
+        <span id="obstacle-value">80</span>
+        <span style="padding-right: 10px;"> </span>
+
+        <button id="add-obstacles" >Add Obstacles</button>
+
+        <button id="reset" >Reset</button>
+    </div>
+    
+    <script>
+
+
+        // JavaScript code to handle the functionality
+        let gridSize = { rows: 5, columns: 5 };
+        let startCell = null;
+        let goalCell = null;
+
+        const gridContainer = document.getElementById("grid-container");
+        const obstaclesContainer = document.getElementById("obstacles-container");
+        const plannerContainer = document.getElementById("planner-container");
+
+        gridContainer.style.display = "block";
+        obstaclesContainer.style.display = "block";
+        plannerContainer.style.display = "block";
+        
+
+        // Add an event listener to the path planner dropdown
+        document.getElementById("path-planner").addEventListener("change", function () {
+            const selectedPlanner = this.value;
+            
+            if (selectedPlanner === "rrt-rope") {
+
+            } else {
+
+            }
+        });
+
+
+        document.getElementById("create-grid").addEventListener("click", function() {
+            createGrid();
+        });
+
+        // Function to create the grid based on user input
+        function createGrid() {
+            const rowCount = parseInt(document.getElementById("row-count").value, 10);
+            const columnCount = parseInt(document.getElementById("column-count").value, 10);
+
+            if (isNaN(rowCount) || isNaN(columnCount) || rowCount < 1 || columnCount < 1) {
+                alert("Please enter valid row and column counts.");
+                return;
+            }
+
+            gridSize = { rows: rowCount, columns: columnCount };
+
+            // Calculate the width of each cell based on the screen width
+            const cellWidth = Math.floor(window.innerWidth * 0.75 / gridSize.columns);
+
+            // Calculate the height of each cell based on the screen height
+            const cellHeight = Math.floor((window.innerHeight * 0.5 ) / gridSize.rows);
+
+            const cellLength = Math.min(cellWidth, cellHeight);
+
+            // Remove the existing grid
+            document.getElementById("map").innerHTML = '';
+
+            // Initialize the new grid
+            for (let i = 0; i < gridSize.rows; i++) {
+                const row = document.createElement("div");
+                row.classList.add("row");
+                for (let j = 0; j < gridSize.columns; j++) {
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.id = `cell-${i}-${j}`;
+                    cell.style.width = `${cellLength}px`;
+                    cell.style.height = `${cellLength}px`;
+                    row.appendChild(cell);
+                }
+                document.getElementById("map").appendChild(row);
+            }
+
+            // Reset the map
+            resetMap();
+        }
+
+        document.getElementById("reset").addEventListener("click", function() {
+            resetMap();
+        });
+
+        document.getElementById("define-start").addEventListener("click", function() {
+            // Reset the path by removing the "path" class from all cells
+            const pathCells = document.getElementsByClassName("path");
+            for (let i = pathCells.length - 1; i >= 0; i--) {
+                pathCells[i].classList.remove("path");
+            }
+
+            // Allow the user to define the start position on the map
+            setStart();
+        });
+
+        document.getElementById("define-goal").addEventListener("click", function() {
+            // Reset the path by removing the "path" class from all cells
+            const pathCells = document.getElementsByClassName("path");
+            for (let i = pathCells.length - 1; i >= 0; i--) {
+                pathCells[i].classList.remove("path");
+            }
+
+            // Allow the user to define the goal position on the map
+            setGoal();
+        });
+
+        document.getElementById("compute").addEventListener("click", function() {
+            // Reset the path by removing the "path" class from all cells
+            const pathCells = document.getElementsByClassName("path");
+            for (let i = pathCells.length - 1; i >= 0; i--) {
+                pathCells[i].classList.remove("path");
+            }
+            togglePath.isShown = false;
+
+            const selectedPlanner = document.getElementById("path-planner").value;
+            if (selectedPlanner === "rrt-rope") {
+                
+                togglePath.isShown = true;
+            } else if (selectedPlanner === "rrt") {
+                computeRRTPath();
+                togglePath.isShown = true;
+            } else {
+                alert("Please select a valid path planner.");
+            }
+        });
+
+        const togglePath = { isShown: false };
+
+        // Add event listeners for input elements
+
+        document.getElementById("row-count").addEventListener("input", function () {
+            const rowCount = parseInt(this.value, 10);
+            document.getElementById("row-value").textContent = rowCount;
+        });
+
+        document.getElementById("column-count").addEventListener("input", function () {
+            const columnCount = parseInt(this.value, 10);
+            document.getElementById("column-value").textContent = columnCount;
+        });
+
+        document.getElementById("obstacle-count").addEventListener("input", function () {
+            const obstacleCount = parseInt(this.value, 10);
+            document.getElementById("obstacle-value").textContent = obstacleCount;
+        });
+        
+
+        document.getElementById("add-obstacles").addEventListener("click", function() {
+            // Reset the path by removing the "path" class from all cells
+            const pathCells = document.getElementsByClassName("path");
+            for (let i = pathCells.length - 1; i >= 0; i--) {
+                pathCells[i].classList.remove("path");
+            }
+            togglePath.isShown = false;
+            
+            const obstacleCount = parseInt(document.getElementById("obstacle-count").value, 10);
+            if (isNaN(obstacleCount) || obstacleCount < 0) {
+                alert("Please enter a valid number of obstacles.");
+                return;
+            }
+
+            // Reset the map with the specified number of obstacles
+            resetMap();
+            addObstacles(obstacleCount);
+        });
+
+
+        // Function to add the specified number of obstacles
+        function addObstacles(count) {
+            for (let i = 0; i < count; i++) {
+                const randomCell = getRandomEmptyCell();
+                if (randomCell) {
+                    randomCell.classList.add("obstacle");
+                }
+            }
+        }
+
+        
+        // Function to reset the map with obstacles at random positions
+        function resetMap() {
+            // Reset the start and goal positions
+            startCell = null;
+            goalCell = null;
+            
+            // Clear the map
+            const cells = document.getElementsByClassName("cell");
+            for (let i = 0; i < cells.length; i++) {
+                cells[i].classList.remove("obstacle", "start", "goal", "path");
+            }
+            togglePath.isShown = false;
+        }
+
+        // Function to allow the user to define the start position
+        function setStart() {
+            if (startCell) {
+                startCell.classList.remove("start");
+            }
+            
+            startCell = getRandomEmptyCell();
+            
+            if (startCell) {
+                startCell.classList.add("start");
+            }
+        }
+
+        // Function to allow the user to define the goal position
+        function setGoal() {
+            if (goalCell) {
+                goalCell.classList.remove("goal");
+            }
+            
+            goalCell = getRandomEmptyCell();
+            
+            if (goalCell) {
+                goalCell.classList.add("goal");
+                precomputeHeuristics();
+            }
+        }
+
+        // Function to get a random empty cell for start and goal positions
+        function getRandomEmptyCell() {
+            const emptyCells = document.querySelectorAll(".cell:not(.obstacle):not(.start):not(.goal)");
+            if (emptyCells.length > 0) {
+                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                return emptyCells[randomIndex];
+            }
+            return null;
+        }
+
+        // Function to compute the RRT path
+        function computeRRTPath() {
+            // Create a grid and set the start and goal positions
+            const grid = createGrid(gridSize.rows, gridSize.columns);
+            const start = { x: 10, y: 10 };
+            const goal = { x: 380, y: 280 };
+            const path = [];
+
+            // Function to create a grid and obstacles
+            function createGrid(rows, columns) {
+                const grid = Array.from({ length: rows }, () => Array(columns).fill(0));
+
+                // Place some obstacles (for example, random obstacles)
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < columns; j++) {
+                        if (Math.random() < 0.2) {
+                            grid[i][j] = 1;
+                        }
+                    }
+                }
+
+                return grid;
+            }
+
+            // Visualization functions to draw the grid, start, goal, and RRT tree
+            function drawGrid() {
+                const gridContainer = document.getElementById("grid-container");
+
+                for (let i = 0; i < gridSize.rows; i++) {
+                    for (let j = 0; j < gridSize.columns; j++) {
+                        const cell = document.createElement("div");
+                        cell.className = "cell";
+                        cell.style.left = j * stepSize + "px";
+                        cell.style.top = i * stepSize + "px";
+
+                        if (grid[i][j] === 1) {
+                            cell.className += " obstacle";
+                        }
+
+                        gridContainer.appendChild(cell);
+                    }
+                }
+            }
+
+            // Main loop to grow the RRT tree
+            function mainLoop() {
+                extendTree();
+                drawRRTTree();
+                if (path.length === 0) {
+                    requestAnimationFrame(mainLoop);
+                } else {
+                    drawPath();
+                }
+            }
+
+            // Function to compute the path with the RRT algorithm
+            function computeRRTPath() {
+                rrtTree.length = 0;
+                rrtTree.push(start);
+                mainLoop();
+            }
+        }
+
+
+
+        const button0 = document.getElementById("create-grid");
+        button0.click();
+        const button1 = document.getElementById("add-obstacles");
+        button1.click();
+        const button2 = document.getElementById("define-start");
+        button2.click();
+        const button3 = document.getElementById("define-goal");
+        button3.click();
+        const button4 = document.getElementById("compute");
+        button4.click();
+
+
+    </script>
+</body>
+</html>
