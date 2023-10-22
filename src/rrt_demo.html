@@ -27,6 +27,7 @@
         #computationTime,
         #pathDisplay,
         #iterations,
+        #minPathFound,
         #rawPathLength,
         #pathLength {
             margin-top: 10px;
@@ -74,7 +75,7 @@
         }
 
         .interm-path-node {
-            background-color: rgb(255, 255, 188);
+            background-color: rgb(239, 209, 37);
             position: absolute;
             width: 4px;
             height: 4px;
@@ -113,7 +114,7 @@
 
         .interm-path-branch {
             position: absolute;
-            border-top: 2px solid rgb(255, 255, 188);
+            border-top: 2px solid rgb(239, 209, 37);
         }
 
         .obstacle {
@@ -158,6 +159,13 @@
                 width: 70px; /* Adjust the width as needed */
                 height: 20px; /* Adjust the height as needed */
             }
+            #map {
+                width: 70%;
+                height: 30%;
+            }
+            body {
+                height: 150vh;
+            }
         }
         @media (max-width: 500px) {
 
@@ -172,11 +180,11 @@
             }
 
             body {
-                height: 150vh;
+                height: 170vh;
             }
 
             #map {
-                width: 100%;
+                width: 75%;
                 height: 40%;
             }
         }
@@ -186,12 +194,20 @@
 
 <body>
 
-    
+    <div class="button-container" id="iterations-container">
+        <label for="num-obstacles">Obstacles:</label>
+        <input type="range" id="num-obstacles" class="mobile-slider-style" min="10" max="100" value="30">
+        <span id="num-obstacles-value">30</span>
+        <span style="padding-right: 10px;"> </span>
+
+        <button id="generateObstaclesBtn">Set Obstacles</button>
+    </div>
+
     <div class="button-container" id="main-buttons-container">
         <button id="resetBtn">Reset</button>
-        <button id="generateObstaclesBtn">Generate Obstacles</button>
-        <button id="defineStartBtn">Define Start</button>
-        <button id="defineGoalBtn">Define Goal</button>
+        <button id="generateObstaclesBtn">Set Obstacles</button>
+        <button id="defineStartBtn">Set Start</button>
+        <button id="defineGoalBtn">Set Goal</button>
     </div>
 
     <div class="button-container" id="planner-container"> 
@@ -200,6 +216,12 @@
             <option value="rrt-connect">RRT-Connect</option>
             <option value="rrt">RRT</option>
         </select>
+
+        <div class="button-container" id="display-interm-path-container">
+            <label for="display-interm-path">Interm. Display</label>
+            <input type="checkbox" id="display-interm-path" name="display-interm-path">
+        </div>
+       
         <select id="step-size-option">
             <option value="without">Without Step Size</option>
             <option value="with">With Step Size</option>
@@ -217,17 +239,16 @@
 
     <div class="button-container" id="rope-stepsize-container">
         <label for="rope-step-size">Step Size:</label>
-        <input type="range" id="rope-step-size" class="mobile-slider-style" min="1" max="50" value="20">
-        <span id="rope-step-size-value">20</span>
+        <input type="range" id="rope-step-size" class="mobile-slider-style" min="1" max="50" value="10">
+        <span id="rope-step-size-value">10</span>
         <span style="padding-right: 10px;"> </span>
     </div>
 
     <div class="button-container" id="iterations-container">
-        <label for="max-iterations">Max iterations:</label>
+        <label for="max-iterations">Max Iterations:</label>
         <input type="range" id="max-iterations" class="mobile-slider-style" min="1" max="10000" value="1000">
         <span id="max-iterations-value">1000</span>
         <span style="padding-right: 10px;"> </span>
-        
     </div>
 
 
@@ -243,6 +264,7 @@
     <div id="computationTime"></div>
     <div id="iterations"></div>
     <div id="pathLength"></div>
+    <div id="minPathFound"></div>
     <div id="rawPathLength"></div>
     <pre id="nodeInfo"></pre>
 
@@ -251,8 +273,10 @@
         const map = document.getElementById('map');
         const pathDisplay = document.getElementById('pathDisplay');
         let stepSizeOption = document.getElementById('step-size-option').value;
-        let delta = 20;
+        let delta = 10;
+        let numObstacles = document.getElementById('num-obstacles').value;
         let selectedPlanner = document.getElementById("path-planner").value;
+        let displayIntermediatePathOption = document.getElementById("display-interm-path").checked;
         const obstacles = [];
         const nodes = [];
         const branches = [];
@@ -261,6 +285,7 @@
         let pathGoal = [];
         let oldPath = [];
         let rawPathLength = 0;
+        let minPathLength = Infinity;
         const pathBranches = [];
         const pathNodes = [];
         let startNode = null;
@@ -311,7 +336,7 @@
         }
 
         function clearMap() {
-            pathDisplay.textContent = 'Clearing map...';
+            pathDisplay.textContent = 'Clearing Map...';
             clearObstacles();
             if (startNode) {
                 map.removeChild(startNode);
@@ -364,15 +389,18 @@
 
         document.getElementById('resetBtn').addEventListener('click', function () {
             clearMap();
+            minPathLength = Infinity;
             nodeInfo.textContent = '';
         });
 
         document.getElementById('defineStartBtn').addEventListener('click', function () {
             defineStart();
+            minPathLength = Infinity;
         });
 
         document.getElementById('defineGoalBtn').addEventListener('click', function () {
             defineGoal();
+            minPathLength = Infinity;
         });
 
         document.getElementById('computeBtn').addEventListener('click', function () {
@@ -416,7 +444,7 @@
                         if (connectingNode) {
                             // A path from start to goal is found
                             backtrackConnectPath(treeStart, newNode, treeGoal, connectingNode);
-                            pathDisplay.textContent = "Path found!";
+                            pathDisplay.textContent = "Path Found!";
                             return true;
                         }
                     }
@@ -434,13 +462,13 @@
                         if (connectingNode) {
                             // A path from start to goal is found
                             backtrackConnectPath(treeStart, connectingNode, treeGoal, newNode);
-                            pathDisplay.textContent = "Path found!";
+                            pathDisplay.textContent = "Path Found!";
                             return true;
                         }
                     }
                 }
             }
-            pathDisplay.textContent = "No path found.";
+            pathDisplay.textContent = "No Path Found.";
             return false;
         }
 
@@ -476,7 +504,6 @@
             tree_node_id = 1;
 
             for (totalIterations = 0; totalIterations < maxIterations; totalIterations++) {
-                // alert('Iteration: ' + iteration + ' Tree length: ' + tree.length + ' First node: ' + tree[0].id + ' Parent: ' + tree[0].parent + ' X: ' + tree[0].x + ' Y: ' + tree[0].y + ' Last node: ' + tree[tree.length - 1].id + ' Parent: ' + tree[tree.length - 1].parent + ' X: ' + tree[tree.length - 1].x + ' Y: ' + tree[tree.length - 1].y);
                 // 1. Generate a random sample
                 const randomSample = generateRandomSample();
 
@@ -501,12 +528,12 @@
                         branches.push(BranchElement);
                         // Backtrack to construct the path
                         backtrackPath(tree, goalNode);
-                        pathDisplay.textContent = "Path found!";
+                        pathDisplay.textContent = "Path Found!";
                         return true;
                     }
                 }
             }
-            pathDisplay.textContent = "No path found.";
+            pathDisplay.textContent = "No Path Found.";
             return false; 
         }
 
@@ -533,7 +560,7 @@
             return nearestNode;
         }
 
-        function extendTree(nearestNode, randomSample, branchClassName) { // Extend the tree from the nearest node towards the random sample // Ensure that the path is collision-free and return the new node.
+        function extendTree(nearestNode, randomSample, branchClassName) { 
             // Compute the unit vector from the nearest node to the random sample
             const dx = randomSample.x - nearestNode.x;
             const dy = randomSample.y - nearestNode.y;
@@ -651,9 +678,9 @@
 
         function computePath() { 
             clearTree();
-            pathDisplay.textContent = "Tree cleared";
+            pathDisplay.textContent = "Tree Cleared";
             clearPath();
-            pathDisplay.textContent = "Path cleared";
+            pathDisplay.textContent = "Path Cleared";
 
             const startTime = performance.now(); // Start measuring time
 
@@ -695,8 +722,10 @@
                     if(!isBranchInObstacle(path[i], path[j])){
                         oldPath = oldPath.concat(path.splice(i+1, j - i - 1)); // remove all nodes between i and j
                         addIntermediateNodes(path, i, i+1);
-                        // displayIntermediatePath();
-                        i = 0;
+                        if(displayIntermediatePathOption){
+                            displayIntermediatePath();
+                        }
+                        i = -1;
                         break;
                     }
                 }
@@ -713,7 +742,7 @@
             const dx = path[j].x - path[i].x;
             const dy = path[j].y - path[i].y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            return Math.abs(sum - distance) < 0.1;
+            return Math.abs(sum - distance) < 0.05;
         }
 
         function addIntermediateNodes(path, ind1, ind2){ 
@@ -767,6 +796,9 @@
                     const dy = path[i + 1].y - path[i].y;
                     pathLength += Math.sqrt(dx * dx + dy * dy);
                 }
+                if(pathLength < minPathLength){
+                    minPathLength = pathLength;
+                }
                 document.getElementById('pathLength').textContent = `Path Length: ${pathLength.toFixed(2)} px`;
                 document.getElementById('rawPathLength').textContent = ``;
                 if(selectedPlanner === "rrt-rope"){
@@ -777,6 +809,7 @@
                 document.getElementById('pathLength').textContent = `Path Length: N/A`;
                 document.getElementById('rawPathLength').textContent = ``;
             }
+            document.getElementById('minPathFound').textContent = `Min. Path Found: ${minPathLength.toFixed(2)} px`;
         }
 
         function isInObstacle(point) {
@@ -803,12 +836,12 @@
             return false;
         }
 
-        // Function to generate 30 obstacles at random positions within the map boundaries
+        // Function to generate obstacles at random positions within the map boundaries
         function generateObstacles() {
             // Remove any existing obstacles
             clearObstacles();
 
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < numObstacles; i++) {
                 const x = Math.floor(Math.random() * (map.clientWidth - 20)); // Subtract 20 to stay within bounds
                 const y = Math.floor(Math.random() * (map.clientHeight - 20)); // Subtract 20 to stay within bounds
 
@@ -850,6 +883,7 @@
         // Add an event listener for the "Generate Obstacles" button
         document.getElementById('generateObstaclesBtn').addEventListener('click', function () {
             generateObstacles();
+            minPathLength = Infinity;
         });
 
         // Add event listeners for the sliders
@@ -861,6 +895,11 @@
         document.getElementById('rope-step-size').addEventListener('input', function () {
             delta = parseInt(this.value, 10);
             document.getElementById('rope-step-size-value').textContent = this.value;
+        });
+
+        document.getElementById('num-obstacles').addEventListener('input', function () {
+            numObstacles = parseInt(this.value, 10);
+            document.getElementById('num-obstacles-value').textContent = this.value;
         });
 
         document.getElementById('max-iterations').addEventListener('input', function () {
@@ -876,6 +915,10 @@
 
         const stepSizeOptionContainer = document.getElementById("step-size-option");
         stepSizeOptionContainer.style.display = "none";
+
+
+        const displayIntermediatePathContainer = document.getElementById("display-interm-path-container");
+        displayIntermediatePathContainer.style.display = "block";
 
         document.getElementById("step-size-option").addEventListener("change", function () {
             stepSizeOption = this.value;
@@ -893,8 +936,10 @@
                 stepSizeOptionContainer.style.display = "none";
                 stepSizeContainer.style.display = "none";
                 deltaContainer.style.display = "block";
+                displayIntermediatePathContainer.style.display = "block";
             }
             else{
+                displayIntermediatePathContainer.style.display = "none";
                 stepSizeOptionContainer.style.display = "block";
                 deltaContainer.style.display = "none";
                 if(stepSizeOption === "with"){
@@ -904,6 +949,11 @@
                     stepSizeContainer.style.display = "none";
                 }
             }
+        });
+
+
+        document.getElementById("display-interm-path").addEventListener("change", function () {
+            displayIntermediatePathOption = this.checked;
         });
 
         const button2 = document.getElementById("generateObstaclesBtn");
