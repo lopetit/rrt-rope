@@ -8,7 +8,7 @@ A video showing functionalities of RRT-Rope is available [here](https://www.yout
   <img src="img/method.png" alt="Method" width="70%"/>
 </p>
 
-Demo available [here](https://edu.louispetit.be/demo/rrt-rope). More info [here](https://www.edu.louispetit.be/rrt-rope)
+Demo available [here](https://www.edu.louispetit.be/demo/rrt-rope-demo). More info [here](https://www.edu.louispetit.be/rrt-rope)
 
 <p align="center">
   <img src="img/method_3D.png" alt="Method_3D" width="70%"/>
