@@ -238,7 +238,7 @@
 
     <div class="button-container" id="rope-stepsize-container">
         <label for="rope-step-size">Step Size:</label>
-        <input type="range" id="rope-step-size" class="mobile-slider-style" min="1" max="50" value="10">
+        <input type="range" id="rope-step-size" class="mobile-slider-style" min="2" max="50" value="10">
         <span id="rope-step-size-value">10</span>
         <span style="padding-right: 10px;"> </span>
     </div>
@@ -403,8 +403,13 @@
         });
 
         document.getElementById('computeBtn').addEventListener('click', function () {
+            pathDisplay.textContent = "Computing...";
+            document.getElementById('computationTime').textContent = '';
+            document.getElementById('iterations').textContent = '';
+            document.getElementById('pathLength').textContent = '';
+            document.getElementById('rawPathLength').textContent = '';
+            document.getElementById('minPathFound').textContent = '';
             if (startNode && goalNode) {
-                pathDisplay.textContent = "Computing...";
                 computePath();
                 // setTimeout(() => {
                 //    const path = computePath();
