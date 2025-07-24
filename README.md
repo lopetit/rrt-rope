@@ -14,10 +14,29 @@ Demo available [here](https://www.edu.louispetit.be/demo/rrt-rope-demo). More in
   <img src="img/method_3D.png" alt="Method_3D" width="70%"/>
 </p>
 
+This repository contains only the code for the HTML demo in 2D. For use in robotics applications or other planning pipelines, the RRT-Rope algorithm is available directly in the [Open Motion Planning Library (OMPL)](https://ompl.kavrakilab.org/index.html). It is implemented as the ropeShortcutPath function, documented [here](https://ompl.kavrakilab.org/classompl_1_1geometric_1_1PathSimplifier.html#a769875a6b05a77835ff0eaa2e948a221). Below is a minimal example of how to use it:
+
+```
+#include <ompl/geometric/planners/rrt/RRTConnect.h>
+#include <ompl/geometric/PathGeometric.h>
+
+// Assuming 'planner' is an instance of ompl::geometric::RRTConnect
+getPlanner()->as<ompl::geometric::RRTConnect>()->setProblemDefinition(getProblemDefinition());
+
+// Attempt to solve the problem within a given planning time
+ompl::base::PlannerStatus solved = planner_->solve(1.0);
+
+// Get the solution path
+auto *sln = static_cast<ompl::geometric::PathGeometric*>(getProblemDefinition()->getSolutionPath().get());
+
+// Perform Rope Shortcut
+getPathSimplifier()->ropeShortcutPath(*sln);
+```
+
 ## Reference
 
 - L. Petit, and A. Desbiens. RRT-Rope: A deterministic shortening approach for fast near-optimal path planning in large-scale uncluttered 3D environments. IEEE International Conference on Systems, Man, and Cybernetics (SMC). Melbourne, Australia, 2021. **Best Student Paper Award** and **Top 5 Best Paper** 
 
 ## Author
 
-[Louis Petit](https://edu.louispetit.be) (louispetit87@gmail.com)
+[Louis Petit](https://edu.louispetit.be) (louis.petit@usherbrooke.ca)
